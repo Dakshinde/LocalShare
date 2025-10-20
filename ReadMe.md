@@ -1,4 +1,4 @@
-# LocalShare 🚀
+# LocalShare 
 
 Simple, offline file sharing for your local network. No internet required.
 
