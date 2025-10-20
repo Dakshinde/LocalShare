@@ -54,7 +54,7 @@ This is the most important step. You must do this *after* installing Python but 
 
 Now for the easy part!
 
-### ｪ On Windows (Easiest Way)
+###  On Windows (Easiest Way)
 
 1.  Navigate to your `LocalShare-Project` folder.
 2.  **Double-click** the `run.bat` file.
@@ -66,7 +66,7 @@ Now for the easy part!
 7.  The app will start! It will show a **QR code** in the terminal and automatically open the sharing page in your web browser.
 8.  Scan the QR code with your phone (or other device) to access the files!
 
-### 克制 On Mac / Linux
+### On Mac / Linux
 
 1.  Open your regular terminal.
 2.  `cd` into your `LocalShare-Project` folder.
