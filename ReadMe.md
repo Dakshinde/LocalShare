@@ -54,7 +54,7 @@ This is the most important step. You must do this *after* installing Python but 
 
 Now for the easy part!
 
-###  On Windows (Easiest Way)
+### On Windows (Easiest Way)
 
 1.  Navigate to your `LocalShare-Project` folder.
 2.  **Double-click** the `run.bat` file.
