@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>LocalShare — {{ folder_name }}</title>
+        <link rel="stylesheet" href="/static/style.css">
+        <link rel="icon" href="/favicon.ico" type="image/x-icon">
+        <link rel="icon" href="/static/app_icon.png" type="image/png">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    </head>
+    <body>
+        <main class="container">
+            <header class="app-bar">
+                <img src="/static/app_icon.png" alt="LocalShare Logo" class="logo-img">
+                <div>
+                    <h1 class="title">{{ folder_name }}</h1>
+                    <div class="subtitle">Local file sharing</div>
+                </div>
+            </header>
+
+            <section class="card" aria-labelledby="uploadHeading">
+                <h2 id="uploadHeading">Upload files</h2>
+                <label class="upload-zone" id="dropZone" for="fileInput" tabindex="0">
+                    <strong>Tap to choose or drop files</strong>
+                    <p>Files will be added to the shared folder.</p>
+                    <div class="actions">
+                        <button class="btn btn-primary" id="chooseBtn" type="button">Select files</button>
+                        </div>
+                    <input id="fileInput" name="files" type="file" multiple style="display:none">
+                </label>
+
+                <div class="selected-files-area" id="selectedFilesArea" style="display:none;">
+                     <h4>Selected Files:</h4>
+                     <div class="file-list" id="selectedList"></div>
+                     <div class="progress-wrap" id="progressWrap" style="display:none">
+                         <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+                             <i id="progressBar" style="width:0%"></i>
+                         </div>
+                         <span id="progressText" style="font-size: 0.9em; margin-left: 10px;"></span>
+                     </div>
+                     <div class="actions" style="margin-top: 15px;">
+                          <button class="btn btn-primary" id="uploadBtn" type="button">Upload Files</button>
+                         <button class="btn btn-ghost" id="clearBtn" type="button">Clear Selection</button>
+                     </div>
+                </div>
+            </section>
+
+             <section class="card" aria-labelledby="filesHeading">
+                <h2 id="filesHeading">Shared files</h2>
+                <div class="files-grid">
+                    {% if files|length == 0 %}
+                        <div class="empty">No files yet. Upload one to get started.</div>
+                    {% endif %}
+                    {% for file in files %}
+                        <article class="file-item" aria-label="{{ file.name }}">
+                            <div class="file-thumb">{{ file.name[0]|upper }}</div>
+                            <div class="file-meta">
+                                <div class="file-name">{{ file.name }}</div>
+                                </div>
+                            <div class="file-actions">
+                                <a class="download" href="/download/{{ file.url }}" download="{{ file.name }}">Download</a>
+                            </div>
+                        </article>
+                    {% endfor %}
+                </div>
+            </section>
+        </main>
+
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+        <script>
+            (function(){
+                const dropZone = document.getElementById('dropZone');
+                const input = document.getElementById('fileInput');
+                const chooseBtn = document.getElementById('chooseBtn');
+                const selectedFilesArea = document.getElementById('selectedFilesArea');
+                const selectedList = document.getElementById('selectedList');
+                const progressWrap = document.getElementById('progressWrap');
+                const progressBar = document.getElementById('progressBar');
+                const progressText = document.getElementById('progressText'); // Added for percentage text
+                const uploadBtn = document.getElementById('uploadBtn');
+                const clearBtn = document.getElementById('clearBtn');
+                const toast = document.getElementById('toast');
+
+                let currentFiles = []; // Store the selected files
+
+                function showToast(msg, isError = false){
+                    toast.textContent = msg;
+                    toast.className = isError ? 'toast error' : 'toast'; // Add error class if needed
+                    toast.style.display='block';
+                    setTimeout(()=>toast.style.display='none', 3000);
+                }
+
+                // --- Event Listeners ---
+                chooseBtn.addEventListener('click', () => input.click());
+                dropZone.addEventListener('click', (e) => {
+                    // Prevent triggering input if clicking buttons inside
+                    if (e.target !== chooseBtn) {
+                         input.click();
+                    }
+                });
+                dropZone.addEventListener('keydown', (e) => {
+                     if(e.key === 'Enter' || e.key === ' ') input.click();
+                });
+                dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+                dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+                dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+                input.addEventListener('change', (e) => handleFiles(e.target.files));
+                uploadBtn.addEventListener('click', () => uploadFiles(currentFiles)); // Trigger upload
+                clearBtn.addEventListener('click', clearSelection); // Trigger clear
+
+                // --- Functions ---
+                function handleFiles(fileList){
+                    if(!fileList || fileList.length === 0) return;
+                    currentFiles = Array.from(fileList); // Store the files
+
+                    selectedList.innerHTML = ''; // Clear previous list
+                    currentFiles.forEach(f => {
+                        const el = document.createElement('div');
+                        el.className='file-item small'; // Add a 'small' class for styling if needed
+                        const sizeKB = Math.round(f.size / 1024);
+                        el.innerHTML = `<div class="file-thumb">${f.name[0].toUpperCase()}</div><div class="file-meta"><div class="file-name">${f.name}</div><div class="file-size">${sizeKB} KB</div></div>`;
+                        selectedList.appendChild(el);
+                    });
+
+                    selectedFilesArea.style.display = 'block'; // Show the selected files area
+                    progressWrap.style.display = 'none'; // Hide progress initially
+                    progressBar.style.width = '0%';
+                    progressText.textContent = '';
+                }
+
+                function clearSelection() {
+                    input.value = ''; // Clear the file input
+                    currentFiles = []; // Clear stored files
+                    selectedList.innerHTML = '';
+                    selectedFilesArea.style.display = 'none';
+                    progressWrap.style.display = 'none';
+                    progressBar.style.width = '0%';
+                    progressText.textContent = '';
+                }
+
+                function uploadFiles(files){
+                    if (!files || files.length === 0) {
+                        showToast('No files selected.', true);
+                        return;
+                    }
+                    progressWrap.style.display = 'flex'; // Show progress bar area (use flex for alignment)
+                    progressBar.style.width = '0%';
+                    progressText.textContent = '0%';
+
+                    const xhr = new XMLHttpRequest();
+                    const fd = new FormData();
+                    files.forEach(f => fd.append('files', f)); // Backend expects 'files'
+
+                    xhr.open('POST', '/upload', true);
+
+                    xhr.upload.onprogress = function(e){
+                        if(e.lengthComputable){
+                            const pct = Math.round((e.loaded / e.total) * 100);
+                            progressBar.style.width = pct + '%';
+                            progressText.textContent = pct + '%'; // Update text
+                        }
+                    };
+
+                    xhr.onload = function(){
+                        if(xhr.status >= 200 && xhr.status < 300){
+                            progressBar.style.width = '100%';
+                            progressText.textContent = '100%';
+                            showToast('Upload complete!');
+                            // Clear selection and reload page after a short delay
+                            clearSelection();
+                            setTimeout(() => location.reload(), 900);
+                        } else {
+                            // Try to parse error from backend
+                            let errorMsg = 'Upload failed';
+                            try {
+                                const response = JSON.parse(xhr.responseText);
+                                errorMsg = `Upload failed: ${response.detail || response.error || 'Server error'}`;
+                            } catch (e) {
+                                errorMsg = `Upload failed: Server status ${xhr.status}`;
+                            }
+                            showToast(errorMsg, true);
+                            progressWrap.style.display = 'none'; // Hide progress on error
+                        }
+                    };
+                    xhr.onerror = function(){
+                        showToast('Network error during upload.', true);
+                        progressWrap.style.display = 'none';
+                    };
+                    xhr.send(fd);
+                }
+            })();
+        </script>
+    </body>
+</html>
