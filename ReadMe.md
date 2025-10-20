@@ -1,4 +1,4 @@
-# LocalShare 噫
+# LocalShare 
 
 Welcome to LocalShare! This tool lets you share files and folders to any device on your local network (like your phone) without needing an internet connection.
 
