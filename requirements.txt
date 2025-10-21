@@ -3,6 +3,5 @@ uvicorn
 qrcode
 Pillow
 aiofiles
-
 python-multipart
 jinja2
