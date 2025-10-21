@@ -8,6 +8,74 @@
         <link rel="icon" href="/favicon.ico" type="image/x-icon">
         <link rel="icon" href="/static/app_icon.png" type="image/png">
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+        <style>
+            /* Basic styles for toast and progress - adjust as needed */
+            .toast {
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background-color: rgba(0,0,0,0.7);
+                color: white;
+                padding: 10px 20px;
+                border-radius: 5px;
+                z-index: 1000;
+                display: none; /* Hidden by default */
+                opacity: 0;
+                transition: opacity 0.3s ease-in-out;
+            }
+            .toast.error {
+                background-color: rgba(200,0,0,0.8);
+            }
+            .progress-wrap {
+                display: flex; /* Changed back to flex for alignment */
+                align-items: center;
+                margin-top: 10px;
+            }
+            .progress {
+                flex-grow: 1;
+                height: 10px;
+                background-color: #eee;
+                border-radius: 5px;
+                overflow: hidden;
+            }
+            .progress i {
+                display: block;
+                height: 100%;
+                background-color: #4a69bd; /* Match button color */
+                transition: width 0.1s linear;
+                border-radius: 5px;
+            }
+            .file-item.small { /* Simple style for selected list */
+                padding: 5px 0;
+                font-size: 0.9em;
+                display: flex;
+                align-items: center;
+            }
+            .file-item.small .file-thumb {
+                 width: 25px; height: 25px; line-height: 25px; font-size: 0.8em; margin-right: 8px; flex-shrink: 0;
+            }
+            .file-item.small .file-meta { flex-grow: 1; }
+            .file-item.small .file-name { font-weight: bold;}
+            .file-item.small .file-size { font-size: 0.8em; color: #666;}
+             /* Add styles from previous answer if needed for logo, etc. */
+            .logo-img {
+                width: 40px;
+                height: 40px;
+                margin-right: 15px;
+                vertical-align: middle;
+                border-radius: 8px;
+            }
+            .app-bar {
+                display: flex;
+                align-items: center;
+                margin-bottom: 20px;
+                padding-bottom: 10px;
+                border-bottom: 1px solid #eee;
+            }
+            .app-bar .title { margin: 0; }
+            .app-bar .subtitle { font-size: 0.9em; color: #555; }
+        </style>
     </head>
     <body>
         <main class="container">
@@ -26,27 +94,26 @@
                     <p>Files will be added to the shared folder.</p>
                     <div class="actions">
                         <button class="btn btn-primary" id="chooseBtn" type="button">Select files</button>
-                        </div>
+                    </div>
                     <input id="fileInput" name="files" type="file" multiple style="display:none">
                 </label>
 
-                <div class="selected-files-area" id="selectedFilesArea" style="display:none;">
-                     <h4>Selected Files:</h4>
-                     <div class="file-list" id="selectedList"></div>
-                     <div class="progress-wrap" id="progressWrap" style="display:none">
-                         <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100">
-                             <i id="progressBar" style="width:0%"></i>
-                         </div>
-                         <span id="progressText" style="font-size: 0.9em; margin-left: 10px;"></span>
-                     </div>
-                     <div class="actions" style="margin-top: 15px;">
-                          <button class="btn btn-primary" id="uploadBtn" type="button">Upload Files</button>
-                         <button class="btn btn-ghost" id="clearBtn" type="button">Clear Selection</button>
+                <div class="selected-files-preview" id="selectedFilesPreview" style="display:none;">
+                    <h4>Selected:</h4>
+                    <div class="file-list" id="selectedList"></div>
+                    <div class="progress-wrap" id="progressWrap" style="display:none">
+                        <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+                            <i id="progressBar" style="width:0%"></i>
+                        </div>
+                        <span id="progressText" style="font-size: 0.9em; margin-left: 10px;"></span>
+                    </div>
+                    <div class="actions" style="margin-top: 15px;">
+                         <button class="btn btn-ghost" id="clearBtn" type="button">Clear</button>
                      </div>
                 </div>
             </section>
 
-             <section class="card" aria-labelledby="filesHeading">
+            <section class="card" aria-labelledby="filesHeading">
                 <h2 id="filesHeading">Shared files</h2>
                 <div class="files-grid">
                     {% if files|length == 0 %}
@@ -57,7 +124,7 @@
                             <div class="file-thumb">{{ file.name[0]|upper }}</div>
                             <div class="file-meta">
                                 <div class="file-name">{{ file.name }}</div>
-                                </div>
+                            </div>
                             <div class="file-actions">
                                 <a class="download" href="/download/{{ file.url }}" download="{{ file.name }}">Download</a>
                             </div>
@@ -71,125 +138,180 @@
 
         <script>
             (function(){
+                // --- Get DOM Elements ---
                 const dropZone = document.getElementById('dropZone');
                 const input = document.getElementById('fileInput');
                 const chooseBtn = document.getElementById('chooseBtn');
-                const selectedFilesArea = document.getElementById('selectedFilesArea');
+                const selectedFilesPreview = document.getElementById('selectedFilesPreview'); // Renamed div
                 const selectedList = document.getElementById('selectedList');
                 const progressWrap = document.getElementById('progressWrap');
                 const progressBar = document.getElementById('progressBar');
-                const progressText = document.getElementById('progressText'); // Added for percentage text
-                const uploadBtn = document.getElementById('uploadBtn');
+                const progressText = document.getElementById('progressText');
                 const clearBtn = document.getElementById('clearBtn');
                 const toast = document.getElementById('toast');
 
-                let currentFiles = []; // Store the selected files
-
-                function showToast(msg, isError = false){
+                // --- Utility Functions ---
+                function showToast(msg, isError = false){ /* ... Keep showToast as before ... */
+                    console.log(`Toast: ${msg} (Error: ${isError})`);
                     toast.textContent = msg;
-                    toast.className = isError ? 'toast error' : 'toast'; // Add error class if needed
+                    toast.className = isError ? 'toast error' : 'toast';
                     toast.style.display='block';
-                    setTimeout(()=>toast.style.display='none', 3000);
+                    requestAnimationFrame(() => {
+                        toast.style.opacity = 1;
+                    });
+                    setTimeout(() => {
+                         toast.style.opacity = 0;
+                         setTimeout(() => toast.style.display = 'none', 300);
+                    }, 3000);
+                }
+                function formatBytes(bytes, decimals = 2) { /* ... Keep formatBytes as before ... */
+                    if (bytes === 0) return '0 Bytes';
+                    const k = 1024;
+                    const dm = decimals < 0 ? 0 : decimals;
+                    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+                    const i = Math.floor(Math.log(bytes) / Math.log(k));
+                    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
                 }
 
-                // --- Event Listeners ---
-                chooseBtn.addEventListener('click', () => input.click());
-                dropZone.addEventListener('click', (e) => {
-                    // Prevent triggering input if clicking buttons inside
-                    if (e.target !== chooseBtn) {
-                         input.click();
-                    }
-                });
-                dropZone.addEventListener('keydown', (e) => {
-                     if(e.key === 'Enter' || e.key === ' ') input.click();
-                });
-                dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
-                dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-                dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
-                input.addEventListener('change', (e) => handleFiles(e.target.files));
-                uploadBtn.addEventListener('click', () => uploadFiles(currentFiles)); // Trigger upload
-                clearBtn.addEventListener('click', clearSelection); // Trigger clear
-
-                // --- Functions ---
+                // --- Core Logic Functions ---
                 function handleFiles(fileList){
-                    if(!fileList || fileList.length === 0) return;
-                    currentFiles = Array.from(fileList); // Store the files
+                    if(!fileList || fileList.length === 0) {
+                        console.log("handleFiles: No files selected/dropped.");
+                        return;
+                    }
 
-                    selectedList.innerHTML = ''; // Clear previous list
-                    currentFiles.forEach(f => {
+                    const files = Array.from(fileList);
+                    console.log(`handleFiles: Processing ${files.length} files:`, files.map(f => f.name));
+
+                    // --- Display selected files BEFORE starting upload ---
+                    selectedList.innerHTML = ''; // Clear previous list display
+                    files.forEach(f => {
                         const el = document.createElement('div');
-                        el.className='file-item small'; // Add a 'small' class for styling if needed
-                        const sizeKB = Math.round(f.size / 1024);
-                        el.innerHTML = `<div class="file-thumb">${f.name[0].toUpperCase()}</div><div class="file-meta"><div class="file-name">${f.name}</div><div class="file-size">${sizeKB} KB</div></div>`;
+                        el.className = 'file-item small';
+                        el.innerHTML = `<div class="file-thumb">${f.name[0].toUpperCase()}</div><div class="file-meta"><div class="file-name">${f.name}</div><div class="file-size">${formatBytes(f.size)}</div></div>`;
                         selectedList.appendChild(el);
                     });
+                    progressWrap.style.display = 'none'; // Hide progress bar initially
+                    selectedFilesPreview.style.display = 'block'; // Show the preview area
 
-                    selectedFilesArea.style.display = 'block'; // Show the selected files area
-                    progressWrap.style.display = 'none'; // Hide progress initially
-                    progressBar.style.width = '0%';
-                    progressText.textContent = '';
+                    // --- Start upload immediately ---
+                    // Use a minimal timeout to allow the browser to render the list before upload starts
+                    setTimeout(() => {
+                        uploadFiles(files);
+                    }, 50); // Small delay (50ms)
+
+                    // Clear the input value AFTER initiating display/upload process
+                    input.value = '';
                 }
 
                 function clearSelection() {
-                    input.value = ''; // Clear the file input
-                    currentFiles = []; // Clear stored files
+                    console.log("clearSelection: Clearing input and display.");
+                    input.value = ''; // Reset the file input's value
                     selectedList.innerHTML = '';
-                    selectedFilesArea.style.display = 'none';
+                    selectedFilesPreview.style.display = 'none'; // Hide the preview area
                     progressWrap.style.display = 'none';
                     progressBar.style.width = '0%';
                     progressText.textContent = '';
                 }
 
-                function uploadFiles(files){
-                    if (!files || files.length === 0) {
-                        showToast('No files selected.', true);
+                function uploadFiles(filesToUpload){
+                    if (!filesToUpload || filesToUpload.length === 0) {
+                        console.error("uploadFiles called with no files.");
+                        showToast('No files to upload.', true);
+                        clearSelection(); // Clear display if called erroneously
                         return;
                     }
-                    progressWrap.style.display = 'flex'; // Show progress bar area (use flex for alignment)
+                    console.log(`Starting upload for ${filesToUpload.length} files.`);
+
+                    progressWrap.style.display = 'flex'; // Show progress bar
                     progressBar.style.width = '0%';
                     progressText.textContent = '0%';
+                    chooseBtn.disabled = true; // Disable select button
+                    clearBtn.disabled = true;  // Disable clear button
 
                     const xhr = new XMLHttpRequest();
                     const fd = new FormData();
-                    files.forEach(f => fd.append('files', f)); // Backend expects 'files'
+                    filesToUpload.forEach(f => fd.append('files', f));
 
                     xhr.open('POST', '/upload', true);
 
-                    xhr.upload.onprogress = function(e){
-                        if(e.lengthComputable){
+                    xhr.upload.onprogress = function(e){ /* ... Keep progress handler ... */
+                         if(e.lengthComputable){
                             const pct = Math.round((e.loaded / e.total) * 100);
                             progressBar.style.width = pct + '%';
-                            progressText.textContent = pct + '%'; // Update text
+                            progressText.textContent = pct + '%';
                         }
                     };
 
                     xhr.onload = function(){
+                        console.log(`Upload finished with status: ${xhr.status}`);
+                        chooseBtn.disabled = false; // Re-enable buttons
+                        clearBtn.disabled = false;
                         if(xhr.status >= 200 && xhr.status < 300){
                             progressBar.style.width = '100%';
                             progressText.textContent = '100%';
                             showToast('Upload complete!');
-                            // Clear selection and reload page after a short delay
-                            clearSelection();
-                            setTimeout(() => location.reload(), 900);
+                            // No need to clearSelection() as input was already cleared
+                            setTimeout(() => {
+                                 // Optionally hide progress/selection area before reload
+                                 // selectedFilesPreview.style.display = 'none';
+                                 location.reload();
+                             }, 900);
                         } else {
-                            // Try to parse error from backend
-                            let errorMsg = 'Upload failed';
+                            // ... (Keep existing error handling) ...
+                             let errorMsg = 'Upload failed';
                             try {
                                 const response = JSON.parse(xhr.responseText);
                                 errorMsg = `Upload failed: ${response.detail || response.error || 'Server error'}`;
-                            } catch (e) {
+                            } catch (parseError) {
                                 errorMsg = `Upload failed: Server status ${xhr.status}`;
                             }
+                            console.error("Upload failed:", errorMsg, xhr.responseText);
                             showToast(errorMsg, true);
                             progressWrap.style.display = 'none'; // Hide progress on error
                         }
                     };
-                    xhr.onerror = function(){
+
+                    xhr.onerror = function(){ /* ... Keep error handler ... */
+                        console.error("Upload network error.");
                         showToast('Network error during upload.', true);
                         progressWrap.style.display = 'none';
+                        chooseBtn.disabled = false;
+                        clearBtn.disabled = false;
                     };
+
                     xhr.send(fd);
                 }
+
+                // --- Event Listeners Setup ---
+                dropZone.addEventListener('click', (e) => {
+                     if (e.target.tagName !== 'BUTTON') { input.click(); }
+                });
+                chooseBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); input.click();
+                });
+                dropZone.addEventListener('keydown', (e) => { /* ... Keep this ... */ });
+                dropZone.addEventListener('dragover', (e) => { /* ... Keep this ... */ });
+                dropZone.addEventListener('dragleave', () => { /* ... Keep this ... */ });
+                dropZone.addEventListener('drop', (e) => {
+                    e.preventDefault(); dropZone.classList.remove('dragover');
+                    if (e.dataTransfer.files) { handleFiles(e.dataTransfer.files); }
+                });
+                input.addEventListener('change', (e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                        handleFiles(e.target.files);
+                    } else {
+                         console.log("Input change event - no files selected (cancel).");
+                         // Do nothing or clear display if desired:
+                         // clearSelection();
+                    }
+                });
+
+                // Clear button listener
+                clearBtn.addEventListener('click', clearSelection);
+
+                console.log("LocalShare script initialized (Immediate Upload Mode).");
+
             })();
         </script>
     </body>
